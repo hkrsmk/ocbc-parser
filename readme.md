@@ -1,6 +1,4 @@
-A simple script that depends on pdftotext to parse OCBC bank statements specifically.
-
-pdftotext has some requirements that are hard to infer. Follow the steps at the [PyPI website](https://pypi.org/project/pdftotext/) to install requirements such as poppler.
+A simple script to parse OCBC bank statements specifically. If you can download the csv extract from OCBC that'd be the best case scenario. This is for when you don't have access to that csv option.
 
 Create virtual environment:
 
