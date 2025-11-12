@@ -26,13 +26,25 @@ def convert_pdf_to_html(pdf_path, html_path):
     with open(html_path, 'w') as html_file:
         html_file.write(html_content)
 
+def read_html_to_soup(html_path):
+    """Takes a html document and puts it into a beautifulsoup object"""
+
+    html_text = ''
+
+    with open(html_path, 'r') as f:
+        html_text = f.read()
+
+    return BeautifulSoup(html_text, 'html.parser')
+
 def convert_html_to_csv(html_path, csv_path):
     """Creates the CSV using information from the html file generated."""
+
+    # TODO: splice together the results from get_data and get the final row objects needed.
+    soup = read_html_to_soup(html_path)
 
     rows = []
     rows.append(DataRow('test transaction date','test value date','test description','test cheque','test withdrawal','test deposit','test balance'))
     rows.append(DataRow('test transaction date2','test value date2','test description2','test cheque2','test withdrawal2','test deposit2','test balance2'))
-
 
     with open(csv_path, 'w', newline='') as f:
         writer = csv.DictWriter(f,fieldnames=rows[0].__dict__.keys())
@@ -40,55 +52,40 @@ def convert_html_to_csv(html_path, csv_path):
         writer.writeheader()
         writer.writerows(rows)
 
-def get_data(option, html_path):
+def get_data(option, soup):
 
     """Get the data based on left padding, from observation"""
     match option:
         case 'transaction date':
-            # 43-46
-            return find_data(43)
+            return find_data('(43|44|45|46)',soup)
         case 'value date':
-            # 91-96
-            return find_data(96)
+            return find_data('(91|92|93|94|95|96)',soup)
         case 'description':
-            return find_data(136)
+            return find_data('(136)',soup)
         case 'cheque':
             # don't have this case in the documents currently
             return ''
         case 'withdrawal':
-            # 323-326
-            if find_data(323):
-                return 
-            else:
-                return ''
-            
+            return find_data('(323|324|325|326)',soup) 
         case 'deposit':
-            # 408-410
-            return find_data(408)
+            return find_data('(406|407|408|409|410)',soup)
         case 'balance':
-            return find_data(502)
+            return find_data('(502)',soup)
 
-def find_data(left_padding):
+def find_data(left_padding,soup):
     """Finds the data given specified parameters"""
     print('finding in soup')
     # print(soup.find_all('div'))
-    print(soup.find_all('div', attrs={'style':re.compile('left:'+str(left_padding)+'px;')}))
-
+    text_list = soup.find_all('div', attrs={'style':re.compile('left:'+str(left_padding)+'px;')})
+    for result in text_list:
+        print(result.get_text())
     return
 
+# set file paths here to the files you want to check against
 pdf_path = 'test.pdf'
 html_path = 'output_pdfminer.html'
 csv_path = 'result.csv'
 
-# set global variable
-html_text = ''
-with open(html_path, 'r') as f:
-    html_text = f.read()
-
-soup = BeautifulSoup(html_text, 'html.parser')
-
-find_data('136')
-
 # convert_pdf_to_html(pdf_path, html_path)
-# get_data('deposit','output_pdfminer.html')
+get_data('description',read_html_to_soup(html_path))
 # convert_html_to_csv(html_path, csv_path)
