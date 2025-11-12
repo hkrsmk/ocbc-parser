@@ -15,6 +15,10 @@ class DataRow:
         self.deposit = deposit
         self.balance = balance
 
+def convert_ocbc_statement(pdf_path, html_path, csv_path):
+    convert_pdf_to_html(pdf_path, html_path)
+    convert_html_to_csv(html_path, csv_path)
+
 def convert_pdf_to_html(pdf_path, html_path):
     """Creates a html that can be read by the code to get data, including column information."""
 
@@ -26,21 +30,19 @@ def convert_pdf_to_html(pdf_path, html_path):
     with open(html_path, 'w') as html_file:
         html_file.write(html_content)
 
-def read_html_to_soup(html_path):
-    """Takes a html document and puts it into a beautifulsoup object"""
-
-    html_text = ''
-
-    with open(html_path, 'r') as f:
-        html_text = f.read()
-
-    return BeautifulSoup(html_text, 'html.parser')
-
 def convert_html_to_csv(html_path, csv_path):
     """Creates the CSV using information from the html file generated."""
 
     # TODO: splice together the results from get_data and get the final row objects needed.
+    # decided against using groupby because the top padding doesn't always align
     soup = read_html_to_soup(html_path)
+
+    transaction_date = get_data('transaction date', soup)
+    value_date = get_data('value date', soup)
+    description = get_data('description', soup)
+    withdrawal = get_data('withdrawal', soup)
+    deposit = get_data('deposit', soup)
+    balance = get_data('balance', soup)
 
     rows = []
     rows.append(DataRow('test transaction date','test value date','test description','test cheque','test withdrawal','test deposit','test balance'))
@@ -52,10 +54,23 @@ def convert_html_to_csv(html_path, csv_path):
         writer.writeheader()
         writer.writerows(rows)
 
-def get_data(option, soup):
+def read_html_to_soup(html_path):
+    """Takes a html document and puts it into a beautifulsoup object"""
 
-    """Get the data based on left padding, from observation"""
+    html_text = ''
+
+    with open(html_path, 'r') as f:
+        html_text = f.read()
+
+    return BeautifulSoup(html_text, 'html.parser')
+
+def get_data(option, soup):
+    """Get the data based on left padding, from observation. 
+    
+    Values are hard coded based on the generated html file."""
+
     match option:
+        # range mainly depends on number of digits per tx
         case 'transaction date':
             return find_data('(43|44|45|46)',soup)
         case 'value date':
@@ -66,9 +81,9 @@ def get_data(option, soup):
             # don't have this case in the documents currently
             return ''
         case 'withdrawal':
-            return find_data('(323|324|325|326)',soup) 
+            return find_data('(321|323|324|325|326|327|328)',soup) 
         case 'deposit':
-            return find_data('(406|407|408|409|410)',soup)
+            return find_data('(406|407|408|409|410|411|412)',soup)
         case 'balance':
             return find_data('(502)',soup)
 
@@ -79,13 +94,13 @@ def find_data(left_padding,soup):
     text_list = soup.find_all('div', attrs={'style':re.compile('left:'+str(left_padding)+'px;')})
     for result in text_list:
         print(result.get_text())
-    return
+    return text_list
 
 # set file paths here to the files you want to check against
 pdf_path = 'test.pdf'
 html_path = 'output_pdfminer.html'
 csv_path = 'result.csv'
 
-# convert_pdf_to_html(pdf_path, html_path)
-get_data('description',read_html_to_soup(html_path))
-# convert_html_to_csv(html_path, csv_path)
+convert_html_to_csv(html_path,csv_path)
+
+# convert_ocbc_statement(pdf_path, html_path, csv_path)
