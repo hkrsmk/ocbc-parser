@@ -89,10 +89,20 @@ def convert_html_to_csv(html_path, csv_path):
         print('Total deposits: ', len_deposit)
 
         return
-
+    
     rows = []
-    rows.append(DataRow('test transaction date','test value date','test description','test cheque','test withdrawal','test deposit','test balance'))
-    rows.append(DataRow('test transaction date2','test value date2','test description2','test cheque2','test withdrawal2','test deposit2','test balance2'))
+
+    for i, tx in enumerate(transaction_date):
+        rows.append(
+            DataRow(
+                tx,
+                value_date[i],
+                description_header[i],
+                '',
+                '',
+                '',
+                balance[i]
+                ))
 
     with open(csv_path, 'w', newline='') as f:
         writer = csv.DictWriter(f,fieldnames=rows[0].__dict__.keys())
@@ -135,7 +145,7 @@ def get_data(option, soup):
 
 def find_data(left_padding,soup):
     """Finds the data given specified parameters"""
-    print('finding in soup')
+
     text_list = soup.find_all('div', attrs={'style':re.compile('left:'+str(left_padding)+'px;')})
     
     # return a list of string
