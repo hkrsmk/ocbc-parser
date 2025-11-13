@@ -21,7 +21,14 @@ class DataRow:
         self.deposit = deposit
         self.balance = balance
 
-def convert_ocbc_statement(pdf_path, html_path, csv_path):
+def convert_ocbc_statement_multi(pdf_paths):
+    for path in pdf_paths:
+        convert_ocbc_statement(path)
+
+def convert_ocbc_statement(pdf_path):
+    pdf_filename = pdf_path.split('.')[-2]
+    html_path = pdf_filename + '.html'
+    csv_path = pdf_filename + '.csv'
     convert_pdf_to_html(pdf_path, html_path)
     convert_html_to_csv(html_path, csv_path)
 
@@ -39,9 +46,7 @@ def convert_pdf_to_html(pdf_path, html_path):
 def convert_html_to_csv(html_path, csv_path):
     '''Creates the CSV using information from the html file generated.'''
 
-    # TODO: splice together the results from get_data and get the final row objects needed.
-    # TODO: maybe decide whether it is withdrawal or deposit depending on balance change
-    # decided against using groupby because the top padding doesn't always align
+    # decided against using groupby for description because the top padding doesn't always align
     soup = read_html_to_soup(html_path)
 
     # picks up some non-date values, so strip them away
@@ -107,7 +112,6 @@ def convert_html_to_csv(html_path, csv_path):
             while(description_index < len_description):
                 description_list.append(description[description_index])
                 description_index += 1
-                print('appending last description')
 
         else:
             while(description[description_index] != description_header[i+1]):
@@ -199,10 +203,5 @@ def has_words(input):
     return re.findall('[a-zA-Z]',input)
 
 # set file paths here to the files you want to check against
-pdf_path = 'test.pdf'
-html_path = 'output_pdfminer.html'
-csv_path = 'result.csv'
-
-convert_html_to_csv(html_path,csv_path)
-
-# convert_ocbc_statement(pdf_path, html_path, csv_path)
+pdf_paths = ['test.pdf']
+convert_ocbc_statement_multi(pdf_paths)
