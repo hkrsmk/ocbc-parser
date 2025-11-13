@@ -60,12 +60,11 @@ def convert_html_to_csv(html_path, csv_path):
                        '^(?!(BALANCE (B|C)/F|Description|Total Withdrawals/Deposits|Total Interest Paid This Year|Average Balance)$).*$',
                          row)]
 
-    # GIRO, COMM, PAYMENT, TRANSFER, CHARGE, PURCHASE captures most of the data I need
     description_header = []
     cash_rebate_flag = False
     for i, row in enumerate(description):
         if (re.match(
-            '.*GIRO|.*TRANSFER|PAYMENT|COMM|FAST|.*CHARGE|.*PURCHASE|.* FEE|.*REBATE',
+            '.*GIRO|.*TRANSFER|PAYMENT|COMM|FAST|.*CHARGE|.*PURCHASE|.* FEE|.*REBATE|BILL|DEBIT CREDIT|CHEQUE DEPOSIT',
             row)):
 
             # CASH REBATE repeats itself in the description unlike others
@@ -83,6 +82,8 @@ def convert_html_to_csv(html_path, csv_path):
 
     # remove last item as it is average balance
     deposit = [row for row in get_data('deposit', soup) if not has_words_or_zero(row)][0:-1]
+
+    cheque = get_data('cheque', soup)
     
     # picks up the starting and ending balance, so remove ending balance
     # don't remove starting balance as it's needed for the first tx
@@ -95,6 +96,7 @@ def convert_html_to_csv(html_path, csv_path):
     # print(description_header)
     # print(withdrawal)
     # print(deposit)
+    # print(cheque)
 
     # sanity check to ensure all txs are picked up
     len_balance = len(balance)
@@ -103,6 +105,7 @@ def convert_html_to_csv(html_path, csv_path):
     len_description_header = len(description_header)
     len_withdrawal = len(withdrawal)
     len_deposit = len(deposit)
+    len_cheque = len(cheque)
 
     if((len_balance - 1) == len_value_date == len_transaction_date == len_description_header == (len_withdrawal + len_deposit)):
         print('Tests passed')
@@ -114,12 +117,14 @@ def convert_html_to_csv(html_path, csv_path):
         print('Total description header: ', len_description_header)
         print('Total withdrawals: ', len_withdrawal)
         print('Total deposits: ', len_deposit)
+        print('Total cheques: ', len_cheque)
 
         return
     
     rows = []
     deposit_index = 0
     withdrawal_index = 0
+    cheque_index = 0
     len_description = len(description)
     description_index = 1
 
@@ -148,17 +153,31 @@ def convert_html_to_csv(html_path, csv_path):
         # since we keep the start balance
 
         if (float(balance[i].replace(',','')) < float(balance[i+1].replace(',',''))):
-            rows.append(
-                DataRow(
+            if(description_header[i] == 'CHEQUE DEPOSIT'):
+                rows.append(
+                    DataRow(
                     tx,
                     value_date[i],
                     tx_description,
-                    '',
+                    cheque[cheque_index],
                     '',
                     deposit[deposit_index],
                     balance[i+1]
                     ))
-            deposit_index += 1
+                cheque_index += 1
+                deposit_index += 1
+            else:
+                rows.append(
+                    DataRow(
+                        tx,
+                        value_date[i],
+                        tx_description,
+                        '',
+                        '',
+                        deposit[deposit_index],
+                        balance[i+1]
+                        ))
+                deposit_index += 1
         else:
             rows.append(
                 DataRow(
@@ -202,14 +221,13 @@ def get_data(option, soup):
         case 'description':
             return find_data('(136)',soup)
         case 'cheque':
-            # don't have this case in the documents currently
-            return ''
+            return find_data('(248)',soup)
         case 'withdrawal':
             return find_data('(321|323|324|325|326|327|328|329)',soup) 
         case 'deposit':
             return find_data('(406|407|408|409|410|411|412|413)',soup)
         case 'balance':
-            return find_data('(502|503|504|505|506|507|508|509)',soup)
+            return find_data('(502|503|504|505|506|507|508|509|510)',soup)
 
 def find_data(left_padding,soup):
     """Finds the data given specified parameters"""
@@ -232,9 +250,6 @@ def find_data(left_padding,soup):
 
 def has_words_or_zero(input):
     return re.findall('[a-zA-Z]|^0\\.00$',input)
-
-# set file paths here to the files you want to check against
-# pdf_paths = ['test.pdf']
 
 # example if you have a 'data' folder with the statements
 pdf_folder = glob.glob('data/*.pdf')
