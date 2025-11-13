@@ -3,6 +3,7 @@ from pdfminer.layout import LAParams
 import io
 import csv
 import re
+import glob
 from bs4 import BeautifulSoup
 
 class DataRow:
@@ -62,7 +63,7 @@ def convert_html_to_csv(html_path, csv_path):
     # GIRO, COMM, PAYMENT, TRANSFER, CHARGE, PURCHASE captures most of the data I need
     description_header = [row for row in description if 
                           re.match(
-                              '.*GIRO|.*TRANSFER|PAYMENT|COMM|FAST|.*CHARGE|.*PURCHAS|.*FEE',
+                              '.*GIRO|.*TRANSFER|PAYMENT|COMM|FAST|.*CHARGE|.*PURCHAS|.*FEE|.*REBATE',
                                                 row)]
     
     # remove last item as it is total withdrawals
@@ -74,6 +75,14 @@ def convert_html_to_csv(html_path, csv_path):
     # picks up the starting and ending balance, so remove ending balance
     # don't remove starting balance as it's needed for the first tx
     balance = get_data('balance', soup)[:-1]
+
+    # debugging statements
+    print(balance)
+    # print(value_date)
+    # print(transaction_date)
+    # print(description_header)
+    # print(withdrawal)
+    # print(deposit)
 
     # sanity check to ensure all txs are picked up
     len_balance = len(balance)
@@ -187,7 +196,7 @@ def get_data(option, soup):
         case 'deposit':
             return find_data('(406|407|408|409|410|411|412)',soup)
         case 'balance':
-            return find_data('(502)',soup)
+            return find_data('(502|503|504)',soup)
 
 def find_data(left_padding,soup):
     """Finds the data given specified parameters"""
@@ -203,5 +212,9 @@ def has_words(input):
     return re.findall('[a-zA-Z]',input)
 
 # set file paths here to the files you want to check against
-pdf_paths = ['test.pdf']
-convert_ocbc_statement_multi(pdf_paths)
+# pdf_paths = ['test.pdf']
+
+# example if you have a 'data' folder with the statements
+pdf_folder = glob.glob('data/*.pdf')
+
+convert_ocbc_statement_multi(pdf_folder)
