@@ -94,8 +94,31 @@ def convert_html_to_csv(html_path, csv_path):
     rows = []
     deposit_index = 0
     withdrawal_index = 0
+    len_description = len(description)
+    description_index = 1
 
     for i, tx in enumerate(transaction_date):
+
+        tx_description = ''
+        description_list = []
+        description_list.append(description_header[i])
+
+        if(i == len_transaction_date - 1):
+            while(description_index < len_description):
+                description_list.append(description[description_index])
+                description_index += 1
+                print('appending last description')
+
+        else:
+            while(description[description_index] != description_header[i+1]):
+                description_list.append(description[description_index])
+                description_index += 1
+            
+            # have to +1 again to move past the next header
+            description_index += 1
+
+        tx_description = '\n'.join(description_list)
+
         # note that len(balance) is the same as len(transaction_date) + 1
         # since we keep the final balance
         if (balance[i] < balance[i+1]):
@@ -103,7 +126,7 @@ def convert_html_to_csv(html_path, csv_path):
                 DataRow(
                     tx,
                     value_date[i],
-                    description_header[i],
+                    tx_description,
                     '',
                     '',
                     deposit[deposit_index],
@@ -115,7 +138,7 @@ def convert_html_to_csv(html_path, csv_path):
                 DataRow(
                     tx,
                     value_date[i],
-                    description_header[i],
+                    tx_description,
                     '',
                     withdrawal[withdrawal_index],
                     '',
