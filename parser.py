@@ -6,6 +6,12 @@ import re
 from bs4 import BeautifulSoup
 
 class DataRow:
+    '''
+    A class representing each row of transaction in the OCBC bank statement.
+    
+    For ease of use
+    '''
+
     def __init__(self, transaction_date, value_date, description, cheque, withdrawal, deposit, balance):
         self.transaction_date = transaction_date
         self.value_date = value_date
@@ -20,7 +26,7 @@ def convert_ocbc_statement(pdf_path, html_path, csv_path):
     convert_html_to_csv(html_path, csv_path)
 
 def convert_pdf_to_html(pdf_path, html_path):
-    """Creates a html that can be read by the code to get data, including column information."""
+    '''Creates a html that can be read by the code to get data, including column information.'''
 
     output_html = io.BytesIO()
     with open(pdf_path, 'rb') as pdf_file:
@@ -31,19 +37,58 @@ def convert_pdf_to_html(pdf_path, html_path):
         html_file.write(html_content)
 
 def convert_html_to_csv(html_path, csv_path):
-    """Creates the CSV using information from the html file generated."""
+    '''Creates the CSV using information from the html file generated.'''
 
     # TODO: splice together the results from get_data and get the final row objects needed.
     # TODO: maybe decide whether it is withdrawal or deposit depending on balance change
     # decided against using groupby because the top padding doesn't always align
     soup = read_html_to_soup(html_path)
 
-    transaction_date = get_data('transaction date', soup)
-    value_date = get_data('value date', soup)
-    description = get_data('description', soup)
-    withdrawal = get_data('withdrawal', soup)
-    deposit = get_data('deposit', soup)
-    balance = get_data('balance', soup)
+    # picks up some non-date values, so strip them away
+    transaction_date = [row for row in get_data('transaction date', soup) if len(row) == 6]
+    value_date = [row for row in get_data('value date', soup) if len(row) == 6]
+
+    # remove opening and closing balance words
+    description = [row for row in get_data('description', soup) if 
+                   re.match(
+                       '^(?!(BALANCE (B|C)/F|Description|Total Withdrawals/Deposits|Total Interest Paid This Year|Average Balance)$).*$',
+                         row)]
+
+    # GIRO, COMM, PAYMENT, TRANSFER, CHARGE, PURCHASE captures most of the data I need
+    description_header = [row for row in description if 
+                          re.match(
+                              '.*GIRO|.*TRANSFER|PAYMENT|COMM|FAST|.*CHARGE|.*PURCHAS|.*FEE',
+                                                row)]
+    
+    # remove last item as it is total withdrawals
+    withdrawal = [row for row in get_data('withdrawal', soup) if not has_words(row)][0:-1]
+
+    # remove last item as it is average balance
+    deposit = [row for row in get_data('deposit', soup) if not has_words(row)][0:-1]
+    
+    # picks up the starting and ending balance which we remove
+    balance = get_data('balance', soup)[1:-1]
+
+    # sanity check to ensure all txs are picked up
+    len_balance = len(balance)
+    len_value_date = len(value_date)
+    len_transaction_date = len(transaction_date)
+    len_description_header = len(description_header)
+    len_withdrawal = len(withdrawal)
+    len_deposit = len(deposit)
+
+    if(len_balance == len_value_date == len_transaction_date == len_description_header == (len_withdrawal + len_deposit)):
+        print('Tests passed')
+    else:
+        print('Tests failed')
+        print('Total balance: ', len_balance)
+        print('Total value date: ', len_value_date)
+        print('Total transaction date: ', len_transaction_date)
+        print('Total description header: ', len_description_header)
+        print('Total withdrawals: ', len_withdrawal)
+        print('Total deposits: ', len_deposit)
+
+        return
 
     rows = []
     rows.append(DataRow('test transaction date','test value date','test description','test cheque','test withdrawal','test deposit','test balance'))
@@ -92,9 +137,14 @@ def find_data(left_padding,soup):
     """Finds the data given specified parameters"""
     print('finding in soup')
     text_list = soup.find_all('div', attrs={'style':re.compile('left:'+str(left_padding)+'px;')})
-    for result in text_list:
-        print(result.get_text())
-    return text_list
+    
+    # return a list of string
+    text_list_string = list(map(lambda x: x.get_text().strip(), text_list))
+
+    return text_list_string
+
+def has_words(input):
+    return re.findall('[a-zA-Z]',input)
 
 # set file paths here to the files you want to check against
 pdf_path = 'test.pdf'
