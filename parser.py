@@ -66,8 +66,9 @@ def convert_html_to_csv(html_path, csv_path):
     # remove last item as it is average balance
     deposit = [row for row in get_data('deposit', soup) if not has_words(row)][0:-1]
     
-    # picks up the starting and ending balance which we remove
-    balance = get_data('balance', soup)[1:-1]
+    # picks up the starting and ending balance, so remove ending balance
+    # don't remove starting balance as it's needed for the first tx
+    balance = get_data('balance', soup)[:-1]
 
     # sanity check to ensure all txs are picked up
     len_balance = len(balance)
@@ -77,11 +78,11 @@ def convert_html_to_csv(html_path, csv_path):
     len_withdrawal = len(withdrawal)
     len_deposit = len(deposit)
 
-    if(len_balance == len_value_date == len_transaction_date == len_description_header == (len_withdrawal + len_deposit)):
+    if((len_balance - 1) == len_value_date == len_transaction_date == len_description_header == (len_withdrawal + len_deposit)):
         print('Tests passed')
     else:
         print('Tests failed')
-        print('Total balance: ', len_balance)
+        print('Total balance excluding last balance: ', len_balance-1)
         print('Total value date: ', len_value_date)
         print('Total transaction date: ', len_transaction_date)
         print('Total description header: ', len_description_header)
@@ -91,18 +92,36 @@ def convert_html_to_csv(html_path, csv_path):
         return
     
     rows = []
+    deposit_index = 0
+    withdrawal_index = 0
 
     for i, tx in enumerate(transaction_date):
-        rows.append(
-            DataRow(
-                tx,
-                value_date[i],
-                description_header[i],
-                '',
-                '',
-                '',
-                balance[i]
-                ))
+        # note that len(balance) is the same as len(transaction_date) + 1
+        # since we keep the final balance
+        if (balance[i] < balance[i+1]):
+            rows.append(
+                DataRow(
+                    tx,
+                    value_date[i],
+                    description_header[i],
+                    '',
+                    '',
+                    deposit[deposit_index],
+                    balance[i+1]
+                    ))
+            deposit_index += 1
+        else:
+            rows.append(
+                DataRow(
+                    tx,
+                    value_date[i],
+                    description_header[i],
+                    '',
+                    withdrawal[withdrawal_index],
+                    '',
+                    balance[i+1]
+                    ))
+            withdrawal_index+=1
 
     with open(csv_path, 'w', newline='') as f:
         writer = csv.DictWriter(f,fieldnames=rows[0].__dict__.keys())
