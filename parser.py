@@ -61,23 +61,35 @@ def convert_html_to_csv(html_path, csv_path):
                          row)]
 
     # GIRO, COMM, PAYMENT, TRANSFER, CHARGE, PURCHASE captures most of the data I need
-    description_header = [row for row in description if 
-                          re.match(
-                              '.*GIRO|.*TRANSFER|PAYMENT|COMM|FAST|.*CHARGE|.*PURCHAS|.*FEE|.*REBATE',
-                                                row)]
-    
+    description_header = []
+    cash_rebate_flag = False
+    for i, row in enumerate(description):
+        if (re.match(
+            '.*GIRO|.*TRANSFER|PAYMENT|COMM|FAST|.*CHARGE|.*PURCHASE|.* FEE|.*REBATE',
+            row)):
+
+            # CASH REBATE repeats itself in the description unlike others
+            if cash_rebate_flag and row == 'CASH REBATE':
+                cash_rebate_flag = False
+                continue
+            
+            description_header.append(row)
+
+            cash_rebate_flag = row == 'CASH REBATE'
+
+
     # remove last item as it is total withdrawals
-    withdrawal = [row for row in get_data('withdrawal', soup) if not has_words(row)][0:-1]
+    withdrawal = [row for row in get_data('withdrawal', soup) if not has_words_or_zero(row)][0:-1]
 
     # remove last item as it is average balance
-    deposit = [row for row in get_data('deposit', soup) if not has_words(row)][0:-1]
+    deposit = [row for row in get_data('deposit', soup) if not has_words_or_zero(row)][0:-1]
     
     # picks up the starting and ending balance, so remove ending balance
     # don't remove starting balance as it's needed for the first tx
     balance = get_data('balance', soup)[:-1]
 
     # debugging statements
-    print(balance)
+    # print(balance)
     # print(value_date)
     # print(transaction_date)
     # print(description_header)
@@ -96,7 +108,7 @@ def convert_html_to_csv(html_path, csv_path):
         print('Tests passed')
     else:
         print('Tests failed')
-        print('Total balance excluding last balance: ', len_balance-1)
+        print('Total balances excluding start balance: ', len_balance-1)
         print('Total value date: ', len_value_date)
         print('Total transaction date: ', len_transaction_date)
         print('Total description header: ', len_description_header)
@@ -133,8 +145,9 @@ def convert_html_to_csv(html_path, csv_path):
         tx_description = '\n'.join(description_list)
 
         # note that len(balance) is the same as len(transaction_date) + 1
-        # since we keep the final balance
-        if (balance[i] < balance[i+1]):
+        # since we keep the start balance
+
+        if (float(balance[i].replace(',','')) < float(balance[i+1].replace(',',''))):
             rows.append(
                 DataRow(
                     tx,
@@ -192,24 +205,33 @@ def get_data(option, soup):
             # don't have this case in the documents currently
             return ''
         case 'withdrawal':
-            return find_data('(321|323|324|325|326|327|328)',soup) 
+            return find_data('(321|323|324|325|326|327|328|329)',soup) 
         case 'deposit':
-            return find_data('(406|407|408|409|410|411|412)',soup)
+            return find_data('(406|407|408|409|410|411|412|413)',soup)
         case 'balance':
-            return find_data('(502|503|504)',soup)
+            return find_data('(502|503|504|505|506|507|508|509)',soup)
 
 def find_data(left_padding,soup):
     """Finds the data given specified parameters"""
 
     text_list = soup.find_all('div', attrs={'style':re.compile('left:'+str(left_padding)+'px;')})
-    
-    # return a list of string
-    text_list_string = list(map(lambda x: x.get_text().strip(), text_list))
 
-    return text_list_string
+    # re-order according to top
+    # sometimes it's jumbled up
+    # TODO: use this somehow to make the descriptions easier
+    ordered_text_list = []
+    for i, text in enumerate(text_list):
+        order = re.search('top:(.*?)px;',text['style']).group(1)
+        actual_text = text.get_text().strip()
 
-def has_words(input):
-    return re.findall('[a-zA-Z]',input)
+        ordered_text_list.append([int(order), actual_text])
+
+    ordered_text_list.sort(key=lambda x: x[0])
+
+    return list(map(lambda x: x[1], ordered_text_list))
+
+def has_words_or_zero(input):
+    return re.findall('[a-zA-Z]|^0\\.00$',input)
 
 # set file paths here to the files you want to check against
 # pdf_paths = ['test.pdf']

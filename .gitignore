@@ -3,3 +3,4 @@ my-venv
 test.html
 test.csv
 data
+.DS_Store
